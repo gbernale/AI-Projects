@@ -374,8 +374,7 @@ class Account:
         date_labels = [(start_date + timedelta(days=i)).isoformat() for i in range(6)]
 
         with self._get_connection() as conn:
-            rows = conn.execute(
-                """
+            query = """
                 SELECT
                     r.user_id,
                     r.project,
@@ -393,9 +392,12 @@ class Account:
                   AND u.status = 'active'
                   AND date(r.date_end) >= ?
                   AND date(r.date_begin) <= ?
-                """,
-                (start_date.isoformat(), today.isoformat())
-            ).fetchall()
+            """
+            params: List[Any] = [start_date.isoformat(), today.isoformat()]
+            if not self.is_admin:
+                query += " AND r.user_id = ?"
+                params.append(self.user_id)
+            rows = conn.execute(query, tuple(params)).fetchall()
 
         technician_summary: Dict[int, Dict[str, Any]] = {}
         for row in rows:
@@ -511,6 +513,9 @@ class Account:
         """
         Retrieve the company profile if one has been stored.
         """
+        self._ensure_active()
+        if not self.is_admin:
+            raise PermissionError("Only administrators can view the company profile.")
         row = self._get_company_profile_row()
         return self._format_company_profile(row) if row else None
 

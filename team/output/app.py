@@ -52,9 +52,21 @@ CUSTOM_CSS = """
 .gradio-container {
     max-width: 1200px !important;
     margin: 0 auto;
+    position: relative;
 }
 .compact-row {
     gap: 0.5rem !important;
+}
+#logout-button {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: auto !important;
+    z-index: 10;
+}
+#logout-button button {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
 }
 @media (max-width: 768px) {
     .gradio-container {
@@ -312,6 +324,14 @@ def load_company_profile(state: Optional[Dict[str, Any]]) -> tuple:
     ]
     try:
         account = load_account_from_state(state)
+        if not account.is_admin:
+            warning = "Only administrators can view the company profile."
+            return (
+                gr.update(value=[]),
+                warning,
+                *base_field_updates,
+                warning
+            )
         profile = account.get_company_profile()
         rows = build_company_profile_rows(profile)
         info = "Company profile is not set yet." if not profile else (
@@ -427,6 +447,7 @@ def handle_login(email: str, password: str, state: Optional[Dict[str, Any]]) -> 
             gr.update(visible=False),
             gr.update(choices=[], value=None, interactive=False),
             gr.update(visible=False),
+            gr.update(visible=False),
             gr.update(value="")
         )
     new_state = {
@@ -452,6 +473,7 @@ def handle_login(email: str, password: str, state: Optional[Dict[str, Any]]) -> 
             interactive=account.is_admin
         ),
         gr.update(visible=account.is_admin),
+        gr.update(visible=account.is_admin),
         gr.update(value="")
     )
 
@@ -468,6 +490,7 @@ def handle_logout(state: Optional[Dict[str, Any]]) -> tuple:
         gr.update(visible=False),
         gr.update(visible=False),
         gr.update(choices=[], value=None, interactive=False),
+        gr.update(visible=False),
         gr.update(visible=False),
         gr.update(value="")
     )
@@ -785,7 +808,7 @@ with gr.Blocks(
         login_button = gr.Button("Login", variant="primary")
     with gr.Column(visible=False) as main_panel:
         user_summary = gr.Markdown("")
-        logout_button = gr.Button("Logout", variant="secondary")
+        logout_button = gr.Button("Logout", variant="secondary", elem_id="logout-button")
         with gr.Tabs():
             with gr.TabItem("Dashboard"):
                 dashboard_refresh = gr.Button("Refresh Activity Overview", variant="secondary")
@@ -796,7 +819,7 @@ with gr.Blocks(
                     interactive=False,
                     wrap=True
                 )
-            with gr.TabItem("Company Profile"):
+            with gr.TabItem("Company Profile") as company_profile_tab:
                 company_profile_info = gr.Markdown("Company profile is not set yet.")
                 company_profile_table = gr.Dataframe(
                     value=[],
@@ -1028,6 +1051,7 @@ with gr.Blocks(
             technician_edit_panel,
             technician_filter_box,
             technician_filter_dropdown,
+            company_profile_tab,
             company_form_panel,
             company_form_status
         ]
@@ -1059,6 +1083,7 @@ with gr.Blocks(
             technician_edit_panel,
             technician_filter_box,
             technician_filter_dropdown,
+            company_profile_tab,
             company_form_panel,
             company_form_status
         ]
